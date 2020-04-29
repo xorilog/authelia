@@ -126,7 +126,7 @@ func StartServer(configuration schema.Configuration, providers middlewares.Provi
 		handler = middlewares.StripPathMiddleware(handler)
 	}
 
-	oidc.RegisterHandlers(router)
+	oidc.RegisterHandlers(r, autheliaMiddleware)
 
 	server := &fasthttp.Server{
 		ErrorHandler:          autheliaErrorHandler,
