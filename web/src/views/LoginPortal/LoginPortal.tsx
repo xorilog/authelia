@@ -12,6 +12,7 @@ import { AuthenticationLevel } from "../../services/State";
 import { useNotifications } from "../../hooks/NotificationsContext";
 import { useRedirectionURL } from "../../hooks/RedirectionURL";
 import { useUserPreferences as userUserInfo } from "../../hooks/UserInfo";
+import { useRedirector } from "../../hooks/Redirector";
 import { SecondFactorMethod } from "../../models/Methods";
 import { useConfiguration } from "../../hooks/Configuration";
 import AuthenticatedView from "./AuthenticatedView/AuthenticatedView";
@@ -27,6 +28,7 @@ export default function (props: Props) {
     const redirectionURL = useRedirectionURL();
     const { createErrorNotification } = useNotifications();
     const [firstFactorDisabled, setFirstFactorDisabled] = useState(true);
+    const redirector = useRedirector();
 
     const [state, fetchState, , fetchStateError] = useAutheliaState();
     const [userInfo, fetchUserInfo, , fetchUserInfoError] = userUserInfo();
@@ -102,7 +104,7 @@ export default function (props: Props) {
     const handleAuthSuccess = async (redirectionURL: string | undefined) => {
         if (redirectionURL) {
             // Do an external redirection pushed by the server.
-            window.location.href = redirectionURL;
+            redirector(redirectionURL);
         } else {
             // Refresh state
             fetchState();

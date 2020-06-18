@@ -51,7 +51,7 @@ func IdentityVerificationStart(args IdentityVerificationStartArgs) RequestHandle
 			return
 		}
 
-		uri, err := GetForwardedURI(ctx)
+		uri, err := GetForwardedOriginWithBasePath(ctx)
 		if err != nil {
 			ctx.Error(err, operationFailedMessage)
 			return

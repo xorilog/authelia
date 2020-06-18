@@ -26,7 +26,7 @@ func NewStore(config *schema.OpenIDConnectConfiguration) *storage.MemoryStore {
 			RedirectURIs:  v.RedirectURIs,
 			ResponseTypes: []string{"code"},
 			GrantTypes:    []string{"refresh_token", "authorization_code"},
-			Scopes:        []string{"openid"},
+			Scopes:        []string{"openid", "profile", "email"},
 		}
 	}
 

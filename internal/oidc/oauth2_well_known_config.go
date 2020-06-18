@@ -2,6 +2,7 @@ package oidc
 
 import (
 	"encoding/json"
+	"fmt"
 
 	"github.com/authelia/authelia/internal/middlewares"
 )
@@ -18,13 +19,25 @@ type configurationJSON struct {
 
 // WellKnownConfigurationGet handler serving the openid configuration.
 func WellKnownConfigurationGet(req *middlewares.AutheliaCtx) {
+	forwardedOrigin, err := middlewares.GetForwardedOrigin(req)
+	if err != nil {
+		req.Error(fmt.Errorf("Unable to retrieve forwarded origin: %v", err), "Operation failed")
+		return
+	}
+
+	forwardedOriginWithBasePath, err := middlewares.GetForwardedOriginWithBasePath(req)
+	if err != nil {
+		req.Error(fmt.Errorf("Unable to retrieve forwarded origin: %v", err), "Operation failed")
+		return
+	}
+
 	var configuration configurationJSON
 
-	configuration.Issuer = "https://login.example.com:8080"
-	configuration.AuthURL = "https://login.example.com:8080/api/oidc/auth"
-	configuration.TokenURL = "https://login.example.com:8080/api/oidc/token"
-	configuration.JWKSURL = "https://login.example.com:8080/api/oidc/jwks"
-	configuration.UserInfoURL = "https://login.example.com:8080/api/oidc/userinfo"
+	configuration.Issuer = forwardedOrigin
+	configuration.AuthURL = fmt.Sprintf("%s/api/oidc/auth", forwardedOriginWithBasePath)
+	configuration.TokenURL = fmt.Sprintf("%s/api/oidc/token", forwardedOriginWithBasePath)
+	configuration.JWKSURL = fmt.Sprintf("%s/api/oidc/jwks", forwardedOriginWithBasePath)
+	configuration.UserInfoURL = fmt.Sprintf("%s/api/oidc/userinfo", forwardedOriginWithBasePath)
 	configuration.Algorithms = []string{"RS256"}
 	configuration.ResponseTypesSupported = []string{
 		"code",

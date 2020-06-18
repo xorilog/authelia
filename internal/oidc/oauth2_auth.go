@@ -54,13 +54,7 @@ func AuthEndpointGet(oauth2 fosite.OAuth2Provider) middlewares.AutheliaHandlerFu
 			return
 		}
 
-		originalURL, err := ctx.GetOriginalURL()
-		if err != nil {
-			err := fmt.Errorf("Unable to retrieve original URL: %v", err)
-			ctx.Logger.Error(err)
-			oauth2.WriteAuthorizeError(rw, ar, err)
-		}
-
+		targetURL := ar.GetRedirectURI()
 		userSession := ctx.GetSession()
 
 		// Resolve the required level of authorizations to proceed with OIDC
@@ -68,7 +62,7 @@ func AuthEndpointGet(oauth2 fosite.OAuth2Provider) middlewares.AutheliaHandlerFu
 			Username: userSession.Username,
 			Groups:   userSession.Groups,
 			IP:       ctx.RemoteIP(),
-		}, *originalURL)
+		}, *targetURL)
 
 		isAuthInsufficient := !authorization.IsAuthLevelSufficient(userSession.AuthenticationLevel, requiredAuthorizationLevel)
 		isConsentMissing := len(ar.GetRequestedScopes()) > 0 && (userSession.OIDCWorkflowSession == nil ||
@@ -81,32 +75,51 @@ func AuthEndpointGet(oauth2 fosite.OAuth2Provider) middlewares.AutheliaHandlerFu
 		}
 
 		if isAuthInsufficient || isConsentMissing {
-			userSession.OIDCWorkflowSession = new(session.OIDCWorkflowSession)
-			userSession.OIDCWorkflowSession.ClientID = clientID
-			userSession.OIDCWorkflowSession.RequestedScopes = ar.GetRequestedScopes()
-			userSession.OIDCWorkflowSession.OriginalURI = ctx.URI().String()
-			userSession.OIDCWorkflowSession.RequiredAuthorizationLevel = requiredAuthorizationLevel
-
-			if err := ctx.SaveSession(userSession); err != nil {
-				ctx.Logger.Errorf("%v", err)
-				http.Error(rw, err.Error(), 500)
-			}
-
-			uri, err := middlewares.GetForwardedURI(ctx)
+			forwardedURI, err := ctx.GetOriginalURL()
 			if err != nil {
 				ctx.Logger.Errorf("%v", err)
 				http.Error(rw, err.Error(), 500)
 				return
 			}
 
-			// Redirect to the authentication portal with a workflow token
-			http.Redirect(rw, r, fmt.Sprintf("%s?workflow=openid", uri), 302)
+			userSession.OIDCWorkflowSession = new(session.OIDCWorkflowSession)
+			userSession.OIDCWorkflowSession.ClientID = clientID
+			userSession.OIDCWorkflowSession.RequestedScopes = ar.GetRequestedScopes()
+			userSession.OIDCWorkflowSession.AuthURI = forwardedURI.String()
+			userSession.OIDCWorkflowSession.TargetURI = targetURL.String()
+			userSession.OIDCWorkflowSession.RequiredAuthorizationLevel = requiredAuthorizationLevel
+
+			if err := ctx.SaveSession(userSession); err != nil {
+				ctx.Logger.Errorf("%v", err)
+				http.Error(rw, err.Error(), 500)
+				return
+			}
+
+			uri, err := middlewares.GetForwardedOriginWithBasePath(ctx)
+			if err != nil {
+				ctx.Logger.Errorf("%v", err)
+				http.Error(rw, err.Error(), 500)
+				return
+			}
+
+			if isConsentMissing {
+				http.Redirect(rw, r, fmt.Sprintf("%s/consent", uri), 302)
+			} else {
+				http.Redirect(rw, r, fmt.Sprintf("%s?workflow=openid", uri), 302)
+			}
 			return
 		}
 
 		// We grant the requested scopes at this stage.
 		for _, scope := range ar.GetRequestedScopes() {
 			ar.GrantScope(scope)
+		}
+
+		userSession.OIDCWorkflowSession = nil
+		if err := ctx.SaveSession(userSession); err != nil {
+			ctx.Logger.Errorf("%v", err)
+			http.Error(rw, err.Error(), 500)
+			return
 		}
 
 		// Now that the user is authorized, we set up a session:

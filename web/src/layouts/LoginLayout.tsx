@@ -7,7 +7,7 @@ import { grey } from "@material-ui/core/colors";
 export interface Props {
     id?: string;
     children?: ReactNode;
-    title: string;
+    title?: string;
     showBrand?: boolean;
 }
 
@@ -26,11 +26,11 @@ export default function (props: Props) {
                     <Grid item xs={12}>
                         <UserSvg className={style.icon}></UserSvg>
                     </Grid>
-                    <Grid item xs={12}>
+                    {props.title ? <Grid item xs={12}>
                         <Typography variant="h5" className={style.title}>
                             {props.title}
                         </Typography>
-                    </Grid>
+                    </Grid> : null}
                     <Grid item xs={12} className={style.body}>
                         {props.children}
                     </Grid>

@@ -26,15 +26,6 @@ func tokenEndpoint(oauth2 fosite.OAuth2Provider) middlewares.AutheliaHandlerFunc
 			return
 		}
 
-		// If this is a client_credentials grant, grant all scopes the client is allowed to perform.
-		if accessRequest.GetGrantTypes().Exact("client_credentials") {
-			for _, scope := range accessRequest.GetRequestedScopes() {
-				if fosite.HierarchicScopeStrategy(accessRequest.GetClient().GetScopes(), scope) {
-					accessRequest.GrantScope(scope)
-				}
-			}
-		}
-
 		// Next we create a response for the access request. Again, we iterate through the TokenEndpointHandlers
 		// and aggregate the result in response.
 		response, err := oauth2.NewAccessResponse(ctx, accessRequest)
@@ -44,9 +35,6 @@ func tokenEndpoint(oauth2 fosite.OAuth2Provider) middlewares.AutheliaHandlerFunc
 			return
 		}
 
-		// All done, send the response.
 		oauth2.WriteAccessResponse(rw, accessRequest, response)
-
-		// The client now has a valid access token
 	}
 }

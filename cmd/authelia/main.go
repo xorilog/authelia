@@ -111,6 +111,8 @@ func startServer() {
 		Notifier:        notifier,
 		SessionProvider: sessionProvider,
 	}
+
+	logging.Logger().Infof("Server is starting...")
 	server.StartServer(*config, providers)
 }
 

@@ -2,7 +2,10 @@ import { useState, useCallback, DependencyList } from "react";
 
 type PromisifiedFunction<Ret> = (...args: any) => Promise<Ret>
 
-export function useRemoteCall<Ret>(fn: PromisifiedFunction<Ret>, deps: DependencyList)
+/*
+ * This hook is primarily used to run long running tasks that client can track progress of.
+ */
+export function useLongRunningTask<Ret>(fn: PromisifiedFunction<Ret>, deps: DependencyList)
     : [Ret | undefined, PromisifiedFunction<void>, boolean, Error | undefined] {
     const [data, setData] = useState(undefined as Ret | undefined);
     const [inProgress, setInProgress] = useState(false);

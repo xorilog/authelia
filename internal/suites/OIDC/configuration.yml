@@ -3,8 +3,8 @@
 ###############################################################
 
 port: 9091
-tls_cert: /var/lib/authelia/ssl/cert.pem
-tls_key: /var/lib/authelia/ssl/key.pem
+tls_cert: /config/ssl/cert.pem
+tls_key: /config/ssl/key.pem
 
 log_level: debug
 
@@ -12,7 +12,7 @@ jwt_secret: unsecure_secret
 
 authentication_backend:
   file:
-    path: /var/lib/authelia/users.yml
+    path: /config/users.yml
 
 session:
   secret: unsecure_session_secret
@@ -20,10 +20,16 @@ session:
   expiration: 3600 # 1 hour
   inactivity: 300 # 5 minutes
   remember_me_duration: 1y
+  # We use redis here to keep the users authenticated when Authelia restarts
+  # It eases development.
+  redis:
+    host: redis
+    port: 6379
+    password: authelia
 
 storage:
   local:
-    path: /var/lib/authelia/db.sqlite
+    path: /config/db.sqlite
 
 access_control:
   default_policy: deny
@@ -38,6 +44,8 @@ access_control:
       policy: one_factor
     - domain: "oidc.example.com"
       policy: two_factor
+    - domain: "oidc-public.example.com"
+      policy: bypass
 
 notifier:
   smtp:
@@ -49,10 +57,18 @@ notifier:
 openid_connect:
   # This secret must be 32 bytes long
   oauth2_hmac_secret: IVPWBkAdJHje3uz7LtFTDU2pFUfh39Xm
-  oidc_issuer_private_key_path: /var/lib/authelia/issuer.pem
+  oidc_issuer_private_key_path: /config/issuer.pem
   clients:
-    client_id: oidc-tester-app
-    # This secret must be a bcrypt hash
-    client_secret: $2a$10$IxMdI6d.LIRZPpSfEwNoeu4rY3FhDREsxFJXikcgdRRAStxUlsuEO
-    redirect_uris:
-      - https://oidc.example.com:8080/oauth2/callback
+    - client_id: oidc-tester-app
+      # This secret must be a bcrypt hash
+      client_secret: $2a$10$IxMdI6d.LIRZPpSfEwNoeu4rY3FhDREsxFJXikcgdRRAStxUlsuEO
+      redirect_uris:
+        - https://oidc.example.com:8080/oauth2/callback
+
+    # This client is used for testing purpose. As of now, the app must be protected by ACLs
+    # otherwise it won't work properly.
+    - client_id: oidc-tester-app-public
+      # This secret must be a bcrypt hash
+      client_secret: $2a$10$IxMdI6d.LIRZPpSfEwNoeu4rY3FhDREsxFJXikcgdRRAStxUlsuEO
+      redirect_uris:
+        - https://oidc-public.example.com:8080/oauth2/callback

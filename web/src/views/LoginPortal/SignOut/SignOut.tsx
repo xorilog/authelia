@@ -7,6 +7,7 @@ import { Redirect } from "react-router";
 import { FirstFactorRoute } from "../../../Routes";
 import { useRedirectionURL } from "../../../hooks/RedirectionURL";
 import { useIsMountedRef } from "../../../hooks/Mounted";
+import { useRedirector } from "../../../hooks/Redirector";
 
 export interface Props { }
 
@@ -16,6 +17,7 @@ export default function (props: Props) {
     const { createErrorNotification } = useNotifications();
     const redirectionURL = useRedirectionURL();
     const [timedOut, setTimedOut] = useState(false);
+    const redirector = useRedirector();
 
     const doSignOut = useCallback(async () => {
         try {
@@ -37,7 +39,7 @@ export default function (props: Props) {
 
     if (timedOut) {
         if (redirectionURL) {
-            window.location.href = redirectionURL;
+            redirector(redirectionURL);
         } else {
             return <Redirect to={FirstFactorRoute} />
         }

@@ -1,6 +1,6 @@
 import { getState } from "../services/State";
-import { useRemoteCall } from "./RemoteCall";
+import { useLongRunningTask } from "./RemoteCall";
 
 export function useAutheliaState() {
-    return useRemoteCall(getState, []);
+    return useLongRunningTask(getState, []);
 }

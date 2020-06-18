@@ -112,6 +112,7 @@ var validKeys = []string{
 	"authentication_backend.file.password.parallelism",
 
 	// OIDC Keys
+	"openid_connect.clients",
 	"openid_connect.clients.redirect_uris",
 	"openid_connect.clients.client_id",
 	"openid_connect.clients.client_secret",

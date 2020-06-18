@@ -1,4 +1,4 @@
-import { useRemoteCall } from "./RemoteCall";
+import { useLongRunningTask } from "./RemoteCall";
 import { getConfiguration } from "../services/Configuration";
 
 export function useEmbeddedVariable(variableName: string) {
@@ -19,5 +19,5 @@ export function useResetPassword() {
 }
 
 export function useConfiguration() {
-    return useRemoteCall(getConfiguration, []);
+    return useLongRunningTask(getConfiguration, []);
 }

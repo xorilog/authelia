@@ -64,6 +64,7 @@ type OIDCWorkflowSession struct {
 	ClientID                   string
 	RequestedScopes            []string
 	GrantedScopes              []string
-	OriginalURI                string
+	TargetURI                  string
+	AuthURI                    string
 	RequiredAuthorizationLevel authorization.Level
 }

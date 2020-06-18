@@ -1,6 +1,6 @@
 import { getUserPreferences } from "../services/UserPreferences";
-import { useRemoteCall } from "./RemoteCall";
+import { useLongRunningTask } from "./RemoteCall";
 
 export function useUserPreferences() {
-    return useRemoteCall(getUserPreferences, []);
+    return useLongRunningTask(getUserPreferences, []);
 }

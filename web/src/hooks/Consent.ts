@@ -1,6 +1,6 @@
-import { useRemoteCall } from "./RemoteCall";
+import { useLongRunningTask } from "./RemoteCall";
 import { getRequestedScopes } from "../services/Consent";
 
 export function useRequestedScopes() {
-    return useRemoteCall(getRequestedScopes, []);
+    return useLongRunningTask(getRequestedScopes, []);
 }
