@@ -13,37 +13,53 @@ import (
 	"github.com/authelia/authelia/internal/session"
 )
 
-func movingAverageIteration(value time.Duration, successful bool, movingAverageCursor *int, execDurationMovingAverage *[]time.Duration, mutex sync.Locker) float64 {
+func movingAverageIteration(ctx *middlewares.AutheliaCtx, requestTime time.Time, successful bool, movingAverageCursor *int, execDurationMovingAverage *[]time.Duration, mutex sync.Locker) float64 {
+	ctx.Logger.Trace("Hit fist factor post moving average iteration mutex lock")
 	mutex.Lock()
+
+	ctx.Logger.Trace("Hit fist factor post moving average iteration cursor start")
 	if successful {
-		(*execDurationMovingAverage)[*movingAverageCursor] = value
+		(*execDurationMovingAverage)[*movingAverageCursor] = time.Since(requestTime)
 		*movingAverageCursor = (*movingAverageCursor + 1) % movingAverageWindow
 	}
+	ctx.Logger.Trace("Hit fist factor post moving average iteration cursor end")
 
 	var sum int64
 
+	ctx.Logger.Trace("Hit fist factor post moving average iteration average start")
 	for _, v := range *execDurationMovingAverage {
 		sum += v.Milliseconds()
 	}
+	ctx.Logger.Trace("Hit fist factor post moving average iteration average end")
 	mutex.Unlock()
+
+	ctx.Logger.Trace("Hit fist factor post moving average iteration mutex unlock")
 
 	return float64(sum / movingAverageWindow)
 }
 
-func calculateActualDelay(ctx *middlewares.AutheliaCtx, execDuration time.Duration, avgExecDurationMs float64, successful *bool) float64 {
+func calculateActualDelay(ctx *middlewares.AutheliaCtx, requestTime time.Time, avgExecDurationMs float64, successful *bool) float64 {
+	execDuration := time.Since(requestTime)
+	ctx.Logger.Trace("Hit fist factor post calc actual delay rand start")
 	randomDelayMs := float64(rand.Int63n(msMaximumRandomDelay)) //nolint:gosec // TODO: Consider use of crypto/rand, this should be benchmarked and measured first.
+	ctx.Logger.Trace("Hit fist factor post calc actual delay rand end")
 	totalDelayMs := math.Max(avgExecDurationMs, msMinimumDelay1FA) + randomDelayMs
 	actualDelayMs := math.Max(totalDelayMs-float64(execDuration.Milliseconds()), 1.0)
-	ctx.Logger.Tracef("attempt successful: %t, exec duration: %d, avg execution duration: %d, random delay ms: %d, total delay ms: %d, actual delay ms: %d", *successful, execDuration.Milliseconds(), int64(avgExecDurationMs), int64(randomDelayMs), int64(totalDelayMs), int64(actualDelayMs))
+	ctx.Logger.Tracef("attempt successful: %t, exec duration ms: %d, avg execution duration ms: %d, random delay ms: %d, total delay ms: %d, actual delay ms: %d", *successful, execDuration.Milliseconds(), int64(avgExecDurationMs), int64(randomDelayMs), int64(totalDelayMs), int64(actualDelayMs))
 
 	return actualDelayMs
 }
 
 func delayToPreventTimingAttacks(ctx *middlewares.AutheliaCtx, requestTime time.Time, successful *bool, movingAverageCursor *int, execDurationMovingAverage *[]time.Duration, mutex sync.Locker) {
-	execDuration := time.Since(requestTime)
-	avgExecDurationMs := movingAverageIteration(execDuration, *successful, movingAverageCursor, execDurationMovingAverage, mutex)
-	actualDelayMs := calculateActualDelay(ctx, execDuration, avgExecDurationMs, successful)
+	ctx.Logger.Trace("Hit first factor post deferred delay to prevent timing attacks start")
+
+	avgExecDurationMs := movingAverageIteration(ctx, requestTime, *successful, movingAverageCursor, execDurationMovingAverage, mutex)
+	actualDelayMs := calculateActualDelay(ctx, requestTime, avgExecDurationMs, successful)
+
+	ctx.Logger.Trace("Hit first factor post deferred delay to prevent timing attacks sleep start")
 	time.Sleep(time.Duration(actualDelayMs) * time.Millisecond)
+
+	ctx.Logger.Trace("Hit first factor post deferred delay to prevent timing attacks complete")
 }
 
 // FirstFactorPost is the handler performing the first factory.
@@ -66,19 +82,28 @@ func FirstFactorPost(msInitialDelay time.Duration, delayEnabled bool) middleware
 
 		requestTime := time.Now()
 
+		ctx.Logger.Trace("Hit first factor post handler")
 		if delayEnabled {
 			defer delayToPreventTimingAttacks(ctx, requestTime, &successful, &movingAverageCursor, &execDurationMovingAverage, mutex)
 		}
 
+		ctx.Logger.Trace("Hit first factor post parsing body start")
+
 		bodyJSON := firstFactorRequestBody{}
 		err := ctx.ParseBody(&bodyJSON)
+
+		ctx.Logger.Trace("Hit first factor post parsing body complete")
 
 		if err != nil {
 			handleAuthenticationUnauthorized(ctx, err, authenticationFailedMessage)
 			return
 		}
 
+		ctx.Logger.Trace("Hit first factor post regulator check start")
+
 		bannedUntil, err := ctx.Providers.Regulator.Regulate(bodyJSON.Username)
+
+		ctx.Logger.Trace("Hit first factor post regulator check complete")
 
 		if err != nil {
 			if err == regulation.ErrUserIsBanned {
@@ -91,7 +116,11 @@ func FirstFactorPost(msInitialDelay time.Duration, delayEnabled bool) middleware
 			return
 		}
 
+		ctx.Logger.Trace("Hit first factor post password check start")
+
 		userPasswordOk, err := ctx.Providers.UserProvider.CheckUserPassword(bodyJSON.Username, bodyJSON.Password)
+
+		ctx.Logger.Trace("Hit first factor post password check complete")
 
 		if err != nil {
 			ctx.Logger.Debugf("Mark authentication attempt made by user %s", bodyJSON.Username)

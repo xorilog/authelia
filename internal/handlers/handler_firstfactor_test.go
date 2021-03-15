@@ -413,12 +413,15 @@ func TestFirstFactorSuite(t *testing.T) {
 }
 
 func TestFirstFactorDelayAverages(t *testing.T) {
+	mock := mocks.NewMockAutheliaCtx(t)
+	startTime := time.Now().Add(time.Millisecond * -500)
+
 	execDuration := time.Millisecond * 500
 	oneSecond := time.Millisecond * 1000
 	durations := []time.Duration{oneSecond, oneSecond, oneSecond, oneSecond, oneSecond, oneSecond, oneSecond, oneSecond, oneSecond, oneSecond}
 	cursor := 0
 	mutex := &sync.Mutex{}
-	avgExecDuration := movingAverageIteration(execDuration, false, &cursor, &durations, mutex)
+	avgExecDuration := movingAverageIteration(mock.Ctx, startTime, false, &cursor, &durations, mutex)
 	assert.Equal(t, avgExecDuration, float64(1000))
 
 	execDurations := []time.Duration{
@@ -435,8 +438,9 @@ func TestFirstFactorDelayAverages(t *testing.T) {
 		if current > 500 {
 			current -= 50
 		}
+		startTime = time.Now().Add(-execDuration)
 
-		avgExecDuration := movingAverageIteration(execDuration, true, &cursor, &durations, mutex)
+		avgExecDuration := movingAverageIteration(mock.Ctx, startTime, true, &cursor, &durations, mutex)
 		assert.Equal(t, avgExecDuration, current)
 	}
 }
@@ -445,22 +449,25 @@ func TestFirstFactorDelayCalculations(t *testing.T) {
 	mock := mocks.NewMockAutheliaCtx(t)
 	successful := false
 
-	execDuration := 500 * time.Millisecond
+	startTime := time.Now().Add(time.Millisecond * -500)
+	execDuration := time.Since(startTime)
+
 	avgExecDurationMs := 1000.0
 	expectedMinimumDelayMs := avgExecDurationMs - float64(execDuration.Milliseconds())
 
 	for i := 0; i < 100; i++ {
-		delay := calculateActualDelay(mock.Ctx, execDuration, avgExecDurationMs, &successful)
+		delay := calculateActualDelay(mock.Ctx, startTime, avgExecDurationMs, &successful)
 		assert.True(t, delay >= expectedMinimumDelayMs)
 		assert.True(t, delay <= expectedMinimumDelayMs+float64(msMaximumRandomDelay))
 	}
 
-	execDuration = 5 * time.Millisecond
+	startTime = time.Now().Add(time.Millisecond * -5)
+	execDuration = time.Since(startTime)
 	avgExecDurationMs = 5.0
 	expectedMinimumDelayMs = msMinimumDelay1FA - float64(execDuration.Milliseconds())
 
 	for i := 0; i < 100; i++ {
-		delay := calculateActualDelay(mock.Ctx, execDuration, avgExecDurationMs, &successful)
+		delay := calculateActualDelay(mock.Ctx, startTime, avgExecDurationMs, &successful)
 		assert.True(t, delay >= expectedMinimumDelayMs)
 		assert.True(t, delay <= expectedMinimumDelayMs+float64(msMaximumRandomDelay))
 	}
